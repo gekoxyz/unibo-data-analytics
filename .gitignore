@@ -1,0 +1,4 @@
+.venv/
+dataset.csv
+.DS_Store
+*.pdf
