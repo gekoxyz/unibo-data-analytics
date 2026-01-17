@@ -29,3 +29,15 @@ For Deep Tabular Models (TabNet, TabTransformer) you can use the following libra
 ## Contacts
 - filippo.bartolucci3@unibo.it
 - leonardo.ciabattini@unibo.it
+
+
+
+
+
+
+
+
+
+TODO:
+
+test StratifiedKFold on randomforest_pipeline.ipynb
