@@ -10,6 +10,6 @@ ipykernel
 tqdm
 # Deep Tabular Models
 # pytorch-tabnet
-# tab-transformer-pytorch
+tab-transformer-pytorch
 # You can also use this module:
 # pytorch_tabular

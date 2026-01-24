@@ -1,0 +1,163 @@
+\documentclass{article}
+\usepackage[italian]{babel}
+\usepackage[a4paper,top=2.5cm,bottom=3cm,left=3cm,right=3cm,marginparwidth=1.75cm]{geometry}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{booktabs}
+\usepackage{amsfonts}
+\usepackage{nicefrac}
+\usepackage{microtype}
+\usepackage{lipsum}
+\usepackage{graphicx}
+\usepackage{gensymb}
+\usepackage{float}
+\usepackage{listings}
+\usepackage{xcolor}
+
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2
+}
+\lstset{style=mystyle}
+
+\graphicspath{ {./images/} }
+
+\title{Data Analytics}
+
+\author{
+ Matteo Galiazzo \\
+  Dipartimento di Informatica - Scienza e Ingegneria\\
+  Università di Bologna\\
+  \texttt{matteo.galiazzo@studio.unibo.it} \\
+}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Your abstract text goes here.
+\end{abstract}
+
+\tableofcontents
+
+\section{Data acquisition and visualization}
+The raw dataset has a shape of \verb|(148301, 145)|. The column to predict is \verb|grade|, which repsresents the risk
+grade associated with the borrower.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=1\linewidth]{./images/grades_distribution.png}
+  \caption{Distribution of risk grades}
+  \label{fig:risk_grades}
+\end{figure}
+
+% correlazioni più importanti
+
+\section{Preprocessing}
+
+\subsection{Handling NaNs}
+
+As we can see from \ref{fig:missing_features_heatmap}, many columns have several missing features.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=1\linewidth]{./images/missing_features_heatmap.png}
+  \caption{Heatmap of the missing values for each feature}
+  \label{fig:missing_features_heatmap}
+\end{figure}
+
+From this evidence I choose to drop all the columns with more than 20\% of missing values, as it can be seen in
+\ref{fig:missing_more_than_20}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=1\linewidth]{./images/missing_more_than_20.png}
+  \caption{Columns with more than 20\% of missing values}
+  \label{fig:missing_more_than_20}
+\end{figure}
+
+After this operation the dataset shape goes from 145 to 88 columns.
+
+\subsection{Categorical columns conversion}
+
+We can see by using the Pandas \verb|select_dtypes()| method the categorical columns:
+
+\begin{lstlisting}[language=python]
+categorical_cols = dataset.select_dtypes(include=['object', 'category']).columns
+print(f"Categorical columns:\n{categorical_cols.sort_values()}") 
+\end{lstlisting}
+\begin{lstlisting}
+Categorical columns:
+Index(['application_type_label', 'borrower_address_state',
+        'borrower_address_zip', 'borrower_housing_ownership_status',
+        'borrower_income_verification_status',
+        'borrower_profile_employment_length', 'credit_history_earliest_line',
+        'debt_settlement_flag_indicator', 'disbursement_method_type', 'grade',
+        'hardship_flag_indicator', 'last_credit_pull_date', 'last_payment_date',
+        'listing_initial_status', 'loan_contract_term_months',
+        'loan_issue_date', 'loan_payment_plan_flag', 'loan_purpose_category',
+        'loan_status_current_code'],
+      dtype='object')
+\end{lstlisting}
+
+I examined the contents of each of these columns with the Pandas method \verb|unique()| to know how to convert the
+contents.
+
+The grade column was mapped from letters to numbers corresponding to that range. 
+
+I used pipelines for the more advanced data processing, to write reusabe code and to clearly separate between the
+stateless and stateful conversions, to avoid data leakage. I created:
+\begin{itemize}
+  \item A \verb|NumericExtractor| to extract integers from strings, by using a regular expression.
+  \item A \verb|CyclicalDateEncoder| to encode dates into a sine/cosine representation. The year is separated in
+  an apposite column, and the months are encoded into sine/cosine, to keep January and December close.
+  \item A \verb|BinaryModeEncodder| to encode a binary categorical column into 0 and 1, by giving the 1 to the under
+  represented value, since it carries most of the information.
+\end{itemize}
+
+The other categorical columns were either one-hot encoded or embedded by the deep neural networks.
+
+\section{Machine Learning models}
+
+\subsection{Random Forest}
+
+\subsection{Linear Regression}
+
+\subsection{K-Nearest Neighbours}
+
+\subsection{Support Vector Machine}
+
+\section{Deep Learning models}
+
+\subsection{FeedForward network}
+
+\section{Deep Tabular models}
+
+\subsection{TabNet}
+
+\subsection{TabTransformer}
+
+\end{document}
