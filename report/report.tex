@@ -1,5 +1,5 @@
 \documentclass{article}
-\usepackage[italian]{babel}
+\usepackage[english]{babel}
 \usepackage[a4paper,top=2.5cm,bottom=3cm,left=3cm,right=3cm,marginparwidth=1.75cm]{geometry}
 
 \usepackage[utf8]{inputenc}
@@ -67,14 +67,36 @@ Your abstract text goes here.
 The raw dataset has a shape of \verb|(148301, 145)|. The column to predict is \verb|grade|, which repsresents the risk
 grade associated with the borrower.
 
+\subsection{Grades distribution}
+
 \begin{figure}[htbp]
   \centering
-  \includegraphics[width=1\linewidth]{./images/grades_distribution.png}
+  \includegraphics[width=0.8\linewidth]{./images/grades_distribution.png}
   \caption{Distribution of risk grades}
   \label{fig:risk_grades}
 \end{figure}
 
-% correlazioni più importanti
+\subsection{Meaningful correlations}
+
+I calculated the correlation between the loan \verb|grade| and the dataset columns. The results can be seen in figure
+\ref{fig:best_correlations}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.8\linewidth]{./images/best_correlations.png}
+  \caption{Top 5 positive and negative correlations with grade}
+  \label{fig:best_correlations}
+\end{figure}
+
+We can see that the column with the highest correlation in absolute value is \verb|loan_contract_interest_rate|, 
+the plot of the box plot of each grade vs the interest rate is shown in \ref{fig:grade_vs_interestrate}.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.8\linewidth]{./images/grade_vs_interestrate.png}
+  \caption{Distribution of loan\_contract\_interest\_rate per grade level.}
+  \label{fig:grade_vs_interestrate}
+\end{figure}
 
 \section{Preprocessing}
 
@@ -143,6 +165,11 @@ The other categorical columns were either one-hot encoded or embedded by the dee
 \section{Machine Learning models}
 
 \subsection{Random Forest}
+
+For \textbf{Random Forest} I used the following pipeline:
+\begin{itemize}
+  \item dropped columns with more than 80\% of missing values
+\end{itemize}
 
 \subsection{Linear Regression}
 
