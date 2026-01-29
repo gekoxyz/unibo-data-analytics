@@ -8,8 +8,16 @@ torch>=2.0.0
 jupyter
 ipykernel
 tqdm
+imblearn
+
+
 # Deep Tabular Models
 # pytorch-tabnet
-tab-transformer-pytorch
+
+
+
+# NOOOOOOOO tab-transformer-pytorch
+
+
 # You can also use this module:
-# pytorch_tabular
+pytorch_tabular

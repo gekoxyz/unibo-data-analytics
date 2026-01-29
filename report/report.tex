@@ -17,30 +17,65 @@
 \usepackage{listings}
 \usepackage{xcolor}
 
-\definecolor{codegreen}{rgb}{0,0.6,0}
-\definecolor{codegray}{rgb}{0.5,0.5,0.5}
-\definecolor{codepurple}{rgb}{0.58,0,0.82}
-\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+% \definecolor{codegreen}{rgb}{0,0.6,0}
+% \definecolor{codegray}{rgb}{0.5,0.5,0.5}
+% \definecolor{codepurple}{rgb}{0.58,0,0.82}
+% \definecolor{backcolour}{rgb}{0.95,0.95,0.92}
 
-\lstdefinestyle{mystyle}{
-    backgroundcolor=\color{backcolour},   
-    commentstyle=\color{codegreen},
-    keywordstyle=\color{magenta},
-    numberstyle=\tiny\color{codegray},
-    stringstyle=\color{codepurple},
-    basicstyle=\ttfamily\footnotesize,
-    breakatwhitespace=false,         
-    breaklines=true,                 
-    captionpos=b,                    
-    keepspaces=true,                 
-    numbers=left,                    
-    numbersep=5pt,                  
-    showspaces=false,                
+% \lstdefinestyle{mystyle}{
+%     backgroundcolor=\color{backcolour},   
+%     commentstyle=\color{codegreen},
+%     keywordstyle=\color{magenta},
+%     numberstyle=\tiny\color{codegray},
+%     stringstyle=\color{codepurple},
+%     basicstyle=\ttfamily\footnotesize,
+%     breakatwhitespace=false,         
+%     breaklines=true,                 
+%     captionpos=b,                    
+%     keepspaces=true,                 
+%     numbers=left,                    
+%     numbersep=5pt,                  
+%     showspaces=false,                
+%     showstringspaces=false,
+%     showtabs=false,                  
+%     tabsize=2
+% }
+
+\usepackage{sourcecodepro}
+
+% Nord / Minimal palette
+\definecolor{bglight}{HTML}{f8f9fa}     % Warm white/off-white
+\definecolor{fgdark}{HTML}{2e3440}      % Dark slate text
+\definecolor{keywordblue}{HTML}{5e81ac} % Muted blue
+\definecolor{stringteal}{HTML}{a3be8c}  % Soft teal
+\definecolor{commentgreen}{HTML}{8fbcbb}% Seafoam comments
+\definecolor{bordergray}{HTML}{e5e9f0}  % Very light border
+
+\lstdefinestyle{modern-light}{
+    backgroundcolor=\color{bglight},
+    basicstyle=\ttfamily\small\color{fgdark},
+    commentstyle=\color{commentgreen}\itshape\small,
+    keywordstyle=\color{keywordblue}\bfseries,
+    stringstyle=\color{stringteal},
+    numberstyle=\tiny\color{gray},
+    breaklines=true,
+    captionpos=b,
+    numbers=left,
+    numbersep=12pt,
+    xleftmargin=3em,
+    framexleftmargin=2.5em,
+    frame=single,
+    rulecolor=\color{bordergray},
+    rulesepcolor=\color{bordergray},
+    aboveskip=1.5em,
+    belowskip=1.5em,
     showstringspaces=false,
-    showtabs=false,                  
-    tabsize=2
+    tabsize=2,
+    columns=flexible,
+    keepspaces=true
 }
-\lstset{style=mystyle}
+
+\lstset{style=modern-light}
 
 \graphicspath{ {./images/} }
 
@@ -64,68 +99,71 @@ Your abstract text goes here.
 \tableofcontents
 
 \section{Data acquisition and visualization}
-The raw dataset has a shape of \verb|(148301, 145)|. The column to predict is \verb|grade|, which repsresents the risk
-grade associated with the borrower.
+The raw dataset consists of \textbf{148301} samples and \textbf{145} features. The target variable is \verb|grade|,
+which represents the risk classification associated with the borrower.
 
-\subsection{Grades distribution}
+\subsection{Target distribution}
+
+The distribution of the target variable is visualized in Figure \ref{fig:risk_grades}.
 
 \begin{figure}[htbp]
   \centering
   \includegraphics[width=0.8\linewidth]{./images/grades_distribution.png}
-  \caption{Distribution of risk grades}
+  \caption{Distribution of borrower risk grades}
   \label{fig:risk_grades}
 \end{figure}
 
-\subsection{Meaningful correlations}
+\subsection{Feature Correlations}
 
-I calculated the correlation between the loan \verb|grade| and the dataset columns. The results can be seen in figure
-\ref{fig:best_correlations}
+To identify driving factors, the correlation between the loan \verb|grade| and all numerical features was calculated.
+The top correlations are displayed in Figure \ref{fig:best_correlations}.
 
 \begin{figure}[htbp]
   \centering
   \includegraphics[width=0.8\linewidth]{./images/best_correlations.png}
-  \caption{Top 5 positive and negative correlations with grade}
+  \caption{Top 5 positive and negative correlations with the target variable.}
   \label{fig:best_correlations}
 \end{figure}
 
-We can see that the column with the highest correlation in absolute value is \verb|loan_contract_interest_rate|, 
-the plot of the box plot of each grade vs the interest rate is shown in \ref{fig:grade_vs_interestrate}.
+The feature with the highest absolute correlation is \verb|loan_contract_interest_rate|. This confirms the domain
+expectation that higher interest rates are assigned to riskier borrower grades. The box plot in Figure
+\ref{fig:grade_vs_interestrate} illustrates the clear separation of interest rates across different grade levels.
 
 \begin{figure}[htbp]
   \centering
   \includegraphics[width=0.8\linewidth]{./images/grade_vs_interestrate.png}
-  \caption{Distribution of loan\_contract\_interest\_rate per grade level.}
+  \caption{Distribution of interest rates stratified by loan grade.}
   \label{fig:grade_vs_interestrate}
 \end{figure}
 
 \section{Preprocessing}
 
-\subsection{Handling NaNs}
+\subsection{Handling Missing Values}
 
-As we can see from \ref{fig:missing_features_heatmap}, many columns have several missing features.
+An analysis of missing data revealed significant sparsity in several columns (see Figure
+\ref{fig:missing_features_heatmap}).
 
 \begin{figure}[htbp]
   \centering
   \includegraphics[width=1\linewidth]{./images/missing_features_heatmap.png}
-  \caption{Heatmap of the missing values for each feature}
+  \caption{Heatmap of the missing values for the features.}
   \label{fig:missing_features_heatmap}
 \end{figure}
 
-From this evidence I choose to drop all the columns with more than 20\% of missing values, as it can be seen in
-\ref{fig:missing_more_than_20}
+To preserve data quality and avoid noise from excessive imputation, features with more than \textbf{20\% missing values}
+were discarded (Figure \ref{fig:missing_more_than_20}). Following this reduction, the dataset dimensionality decreased
+from 145 to 88 columns.
 
 \begin{figure}[htbp]
   \centering
   \includegraphics[width=1\linewidth]{./images/missing_more_than_20.png}
-  \caption{Columns with more than 20\% of missing values}
+  \caption{Features exceeding the 20\% missing value threshold.}
   \label{fig:missing_more_than_20}
 \end{figure}
 
-After this operation the dataset shape goes from 145 to 88 columns.
+\subsection{Feature Engineering and Encoding}
 
-\subsection{Categorical columns conversion}
-
-We can see by using the Pandas \verb|select_dtypes()| method the categorical columns:
+Categorical features were identified using the Pandas \verb|select_dtypes| method. The identified features include:
 
 \begin{lstlisting}[language=python]
 categorical_cols = dataset.select_dtypes(include=['object', 'category']).columns
@@ -145,37 +183,213 @@ Index(['application_type_label', 'borrower_address_state',
       dtype='object')
 \end{lstlisting}
 
-I examined the contents of each of these columns with the Pandas method \verb|unique()| to know how to convert the
-contents.
+\subsubsection{Custom Transformation Pipelines}
 
-The grade column was mapped from letters to numbers corresponding to that range. 
+To ensure reproducibility and prevent data leakage, distinct preprocessing pipelines were constructed for different
+data types:
 
-I used pipelines for the more advanced data processing, to write reusabe code and to clearly separate between the
-stateless and stateful conversions, to avoid data leakage. I created:
 \begin{itemize}
-  \item A \verb|NumericExtractor| to extract integers from strings, by using a regular expression.
-  \item A \verb|CyclicalDateEncoder| to encode dates into a sine/cosine representation. The year is separated in
-  an apposite column, and the months are encoded into sine/cosine, to keep January and December close.
-  \item A \verb|BinaryModeEncodder| to encode a binary categorical column into 0 and 1, by giving the 1 to the under
-  represented value, since it carries most of the information.
+  \item \textbf{Numeric Extraction}: A regex-based \verb|NumericExtractor| was implemented to parse integers from
+  mixed-string columns.
+  \item \textbf{Cyclical Date Encoding}: Dates were handled by the \verb|CyclicalDateEncoder|. The year was extracted
+  as an ordinal feature, while months were transformed into sine and cosine components. This preserves the cyclical
+  temporal proximity between December and January.
+  \item \textbf{Binary Encoding}: A \verb|BinaryModeEncoder| was created for binary categorical variables, assigning
+  the positive class (1) to the minority value to capture information density.
 \end{itemize}
 
-The other categorical columns were either one-hot encoded or embedded by the deep neural networks.
+For categorical columns I used sklearn's \verb|OneHotEncoder|.
 
 \section{Machine Learning models}
 
-\subsection{Random Forest}
+\subsection{Random Forest classifier}
 
-For \textbf{Random Forest} I used the following pipeline:
+The Random Forest model was trained using the following preprocessing steps:
 \begin{itemize}
-  \item dropped columns with more than 80\% of missing values
+  \item \textbf{Missing value thresholding}: Columns with more than 20\% missing values were dropped using
+  \texttt{HighMissingDropper(threshold=0.2)}
+  \item \textbf{Feature encoding}: Categorical variables were processed using:
+  \begin{itemize}
+    \item \texttt{NumericExtractor} for parsing mixed-type numeric fields.
+    \item \texttt{OneHotEncoder} (with \texttt{handle\_unknown='ignore'} for robustness on unseen categories).
+    \item \texttt{CyclicalDateEncoder} to transform temporal features into sine/cosine pairs, preserving cyclical
+    relationships (e.g., month 12 is closer to 1 than to 6).
+    \item \texttt{BinaryModeEncoder} for binary categorical features.
+  \end{itemize}
+  \item \textbf{Dimensionality reduction}: High-cardinality geographic features (\texttt{borrower\_address\_zip} and
+  \texttt{borrower\_address\_state}) were excluded from One-Hot Encoding to prevent sparse feature space explosion, as
+  Random Forest efficiency degrades with high-dimensional sparse inputs despite its robustness to feature dimensionality
+  in general.
+  \item \textbf{Redundant feature removal}: The \texttt{loan\_title} column was dropped due to information leakage or
+  redundancy with other loan descriptors.
 \end{itemize}
 
-\subsection{Linear Regression}
+Missing values were not imputed, as Random Forests handle them natively during tree construction.
+% TODO: WRITE BETTER
+Variables were not scaled since Random Forests make decision based on higher/lower and cannot be influenced by feature
+size.
+
+A grid search was performed to optimize the following hyperparameters:
+\begin{itemize}
+  \item \texttt{max\_depth}: \{20, None\}: to limit tree depth to prevent overfitting.
+  \item \texttt{n\_estimators}: \{100, 200\}: to balance computational cost with ensemble diversity.
+  \item \texttt{min\_samples\_leaf}: \{1, 5\}: to control leaf granularity and decision boundaries smoothness.
+\end{itemize}
+
+The model uses \texttt{class\_weight='balanced'} to account for class imbalance. Model selection was based on
+\textbf{maximizing balanced accuracy} via stratified $k$-fold cross-validation to ensure robustness across data splits.
+
+\begin{lstlisting}[language=python, basicstyle=\footnotesize\ttfamily, breaklines=true, frame=single, caption={Random Forest Pipeline}]
+preprocessor = ColumnTransformer(
+    transformers=[
+        ('extract', NumericExtractor(), extract_fields),
+        ('categorical', OneHotEncoder(drop='first', sparse_output=False, handle_unknown='ignore'), one_hot_encoding_cols),
+        ('date', CyclicalDateEncoder(), date_fields),
+        ('binary', BinaryModeEncoder(), binary_cols),
+        ('drop_redundant', 'drop', redundant_cols)
+    ], 
+    remainder="passthrough"
+)
+
+full_pipeline = Pipeline([
+    ('dropper', HighMissingDropper(threshold=20)),
+    ('prep', preprocessor),
+    ('rf', RandomForestClassifier(class_weight='balanced', n_jobs=-1, random_state=42))
+])
+
+param_grid = {
+    'rf__max_depth': [20, None],
+    'rf__n_estimators': [100, 200],
+    'rf__min_samples_leaf': [1, 5]
+}
+\end{lstlisting}
 
 \subsection{K-Nearest Neighbours}
 
+The $K$-Nearest Neighbours model was trained using the following preprocessing steps:
+\begin{itemize}
+  \item \textbf{Missing value thresholding}: Columns with more than 20\% missing values were dropped using
+  \texttt{HighMissingDropper(threshold=0.2)}
+  \item \textbf{Feature encoding}: Categorical variables were processed using:
+  \begin{itemize}
+    \item \texttt{NumericExtractor} for parsing mixed-type numeric fields.
+    \item \texttt{OneHotEncoder} (with \texttt{handle\_unknown='ignore'} for robustness on unseen categories).
+    \item \texttt{CyclicalDateEncoder} to transform temporal features into sine/cosine pairs, preserving cyclical
+    relationships (e.g. month 12 is closer to 1 than to 6).
+    \item \texttt{BinaryModeEncoder} for binary categorical features.
+  \end{itemize}
+  \item \textbf{Dimensionality reduction}: High-cardinality geographic features (\texttt{borrower\_address\_zip} and
+  \texttt{borrower\_address\_state}) were excluded from One-Hot Encoding to prevent sparse feature space explosion, as
+  Random Forest efficiency degrades with high-dimensional sparse inputs despite its robustness to feature dimensionality
+  in general.
+  \item \textbf{Redundant feature removal}: The \texttt{loan\_title} column was dropped due to information leakage or
+  redundancy with other loan descriptors.
+  \item \textbf{Standard scaling}: The columns were scaled to make each faeture contribute approximately proportionately
+  to the algorithm.
+  \item \textbf{Variable sampling}: Variables were sampled to handle class imbalance.
+  \item \textbf{Linear Discriminant Analysis}: LDA was used to find a projection that maximizes class separation. Since
+  the distance between points becomes similar in higher dimensions, this greatly benefits the classifier.
+\end{itemize}
+
+A grid search was performed to optimize the following hyperparameters:
+\begin{itemize}
+  \item \texttt{n\_neighbors}: \{3, 5, 7\}: to balance computational cost with decision boundaries smoothness.
+  \item \texttt{LDA}: \{LDA(), passthrough\}: to check if dimensionality reduction helps the model.
+  \item \texttt{Sampling}: \{passthrough, randomUnderSampler, SMOTE\}: to check which strategy balances the classes in a
+  better way.
+\end{itemize}
+
+The model uses \texttt{weights='distance'} to weight points by the inverse of their distance, making closer points have
+a greater influence.
+
+Model selection was based on \textbf{maximizing balanced accuracy} via stratified $k$-fold cross-validation to ensure
+robustness across data splits.
+
+\begin{lstlisting}[language=python, basicstyle=\footnotesize\ttfamily, breaklines=true, frame=single, caption={Random Forest Pipeline}]
+numeric_pipe = SkPipeline([
+    ('extract', NumericExtractor()),
+    ('impute', SimpleImputer(strategy='median'))
+])
+
+categorical_pipe = SkPipeline([
+    ('impute', SimpleImputer(strategy='constant', fill_value='missing')),
+    ('ohe', OneHotEncoder(drop='first', sparse_output=False, handle_unknown='ignore'))
+])
+
+date_pipe = SkPipeline([
+    ('cyclical', CyclicalDateEncoder()),
+    ('impute', SimpleImputer(strategy='median'))
+])
+
+binary_pipe = SkPipeline([
+    ('binary_enc', BinaryModeEncoder()), 
+    ('impute', SimpleImputer(strategy='most_frequent'))
+])
+
+preprocessor = ColumnTransformer(
+    transformers=[
+        ('num_pipe', numeric_pipe, extract_fields),
+        ('cat_pipe', categorical_pipe, one_hot_encoding_cols),
+        ('date_pipe', date_pipe, date_fields),
+        ('bin_pipe', binary_pipe, binary_cols),
+        ('drop_redundant', 'drop', redundant_cols)
+    ], 
+    # Use a median imputer for any columns not listed (passthrough)
+    remainder=SimpleImputer(strategy='median') 
+)
+
+full_pipeline = ImbPipeline([
+    ('dropper', HighMissingDropper(threshold=20)),
+    ('prep', preprocessor),
+    ('scaler', StandardScaler()),
+    ('sampler', 'passthrough'),
+    ('lda', LDA()),
+    ('knn', KNeighborsClassifier(weights='distance'))
+])
+
+param_grid = {
+    'knn__n_neighbors': [3, 5, 7],
+    'lda': ['passthrough', LDA()],
+    'sampler': ['passthrough', RandomUnderSampler(random_state=SEED), SMOTE(random_state=SEED)]
+}
+\end{lstlisting}
+
 \subsection{Support Vector Machine}
+
+The Support Vector Machine was trained using the following preprocessing steps:
+\begin{itemize}
+  \item \textbf{Missing value thresholding}: Columns with more than 20\% missing values were dropped using
+  \texttt{HighMissingDropper(threshold=0.2)}
+  \item \textbf{Feature encoding}: Categorical variables were processed using:
+  \begin{itemize}
+    \item \texttt{NumericExtractor} for parsing mixed-type numeric fields.
+    \item \texttt{OneHotEncoder} (with \texttt{handle\_unknown='ignore'} for robustness on unseen categories).
+    \item \texttt{CyclicalDateEncoder} to transform temporal features into sine/cosine pairs, preserving cyclical
+    relationships (e.g. month 12 is closer to 1 than to 6).
+    \item \texttt{BinaryModeEncoder} for binary categorical features.
+  \end{itemize}
+  \item \textbf{Dimensionality reduction}: High-cardinality geographic features (\texttt{borrower\_address\_zip} and
+  \texttt{borrower\_address\_state}) were excluded from One-Hot Encoding to prevent sparse feature space explosion, as
+  Random Forest efficiency degrades with high-dimensional sparse inputs despite its robustness to feature dimensionality
+  in general.
+  \item \textbf{Redundant feature removal}: The \texttt{loan\_title} column was dropped due to information leakage or
+  redundancy with other loan descriptors.
+  \item \textbf{Standard scaling}: The columns were scaled to make each faeture contribute approximately proportionately
+  to the algorithm.
+  \item \textbf{Variable sampling}: Variables were sampled to handle class imbalance.
+  \item \textbf{Linear Discriminant Analysis}: LDA was used to find a projection that maximizes class separation. Since
+  the distance between points becomes similar in higher dimensions, this greatly benefits the classifier.
+\end{itemize}
+
+A grid search was performed to optimize the following hyperparameters:
+\begin{itemize}
+  \item \texttt{max\_iter}: \{1000, 10000\}: to check if more iterations helps the model.
+  \item \texttt{C}: \{0.01, 0.1, 1, 10, 100\}: to 
+\end{itemize}
+
+The model uses \texttt{class_weights='balanced'} to to account for class imbalance.
+Model selection was based on \textbf{maximizing balanced accuracy} via stratified $k$-fold cross-validation to ensure
+robustness across data splits.
 
 \section{Deep Learning models}
 
