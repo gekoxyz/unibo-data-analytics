@@ -216,16 +216,15 @@ The Random Forest model was trained using the following preprocessing steps:
     relationships (e.g., month 12 is closer to 1 than to 6).
     \item \texttt{BinaryModeEncoder} for binary categorical features.
   \end{itemize}
-  \item \textbf{Dimensionality reduction}: High-cardinality geographic features (\texttt{borrower\_address\_zip} and
-  \texttt{borrower\_address\_state}) were excluded from One-Hot Encoding to prevent sparse feature space explosion, as
+  \item \textbf{Dimensionality reduction}: High-cardinality nominal categorical features (\texttt{borrower\_address\_zip} and
+  \texttt{borrower\_address\_state}) were excluded from One-Hot Encoding to prevent feature space explosion, as
   Random Forest efficiency degrades with high-dimensional sparse inputs despite its robustness to feature dimensionality
   in general.
-  \item \textbf{Redundant feature removal}: The \texttt{loan\_title} column was dropped due to information leakage or
-  redundancy with other loan descriptors.
+  \item \textbf{Redundant feature removal}: The \texttt{loan\_title} column was dropped due to redundancy with
+  \texttt{loan\_purpose\_category}
 \end{itemize}
 
 Missing values were not imputed, as Random Forests handle them natively during tree construction.
-% TODO: WRITE BETTER
 Variables were not scaled since Random Forests make decision based on higher/lower and cannot be influenced by feature
 size.
 
@@ -264,66 +263,75 @@ param_grid = {
 }
 \end{lstlisting}
 
+
 \subsection{K-Nearest Neighbours}
 
 The $K$-Nearest Neighbours model was trained using the following preprocessing steps:
+
 \begin{itemize}
   \item \textbf{Missing value thresholding}: Columns with more than 20\% missing values were dropped using
   \texttt{HighMissingDropper(threshold=0.2)}
   \item \textbf{Feature encoding}: Categorical variables were processed using:
   \begin{itemize}
-    \item \texttt{NumericExtractor} for parsing mixed-type numeric fields.
-    \item \texttt{OneHotEncoder} (with \texttt{handle\_unknown='ignore'} for robustness on unseen categories).
-    \item \texttt{CyclicalDateEncoder} to transform temporal features into sine/cosine pairs, preserving cyclical
-    relationships (e.g. month 12 is closer to 1 than to 6).
-    \item \texttt{BinaryModeEncoder} for binary categorical features.
+    \item \texttt{NumericExtractor} for parsing mixed-type numeric fields, followed by median imputing and standard scaling
+    \item \texttt{OneHotEncoder} for nominal categorical columns. Before
+    this I did constant imputation by filling missing values with the string "missing".
+    \item \texttt{CyclicalDateEncoder} to transform temporal categorical features into sine/cosine pairs, preserving cyclical
+    relationships (e.g. month 12 is closer to 1 than to 6). Then I applied median imputation for missing values,
+    and standard scaling which is not needed for sine/cosine but for the year column.
+    \item \texttt{BinaryModeEncoder} for binary categorical features, with imputation with the most frequent class
+    after that.
   \end{itemize}
-  \item \textbf{Dimensionality reduction}: High-cardinality geographic features (\texttt{borrower\_address\_zip} and
-  \texttt{borrower\_address\_state}) were excluded from One-Hot Encoding to prevent sparse feature space explosion, as
-  Random Forest efficiency degrades with high-dimensional sparse inputs despite its robustness to feature dimensionality
-  in general.
-  \item \textbf{Redundant feature removal}: The \texttt{loan\_title} column was dropped due to information leakage or
-  redundancy with other loan descriptors.
-  \item \textbf{Standard scaling}: The columns were scaled to make each faeture contribute approximately proportionately
-  to the algorithm.
-  \item \textbf{Variable sampling}: Variables were sampled to handle class imbalance.
-  \item \textbf{Linear Discriminant Analysis}: LDA was used to find a projection that maximizes class separation. Since
-  the distance between points becomes similar in higher dimensions, this greatly benefits the classifier.
+  \item \textbf{Redundant feature removal}: The \texttt{loan\_title} column was dropped due to redundancy with
+  \texttt{loan\_purpose\_category}
+  \item \textbf{Numerical imputation}: The remaining numerical columns were treated with median imputing and standard scaling,
+  because KNN relies on distance metrics, scaling is mandatory to prevent features with larger ranges from dominating the
+  distance calculation.
 \end{itemize}
 
 A grid search was performed to optimize the following hyperparameters:
 \begin{itemize}
   \item \texttt{n\_neighbors}: \{3, 5, 7\}: to balance computational cost with decision boundaries smoothness.
-  \item \texttt{LDA}: \{LDA(), passthrough\}: to check if dimensionality reduction helps the model.
-  \item \texttt{Sampling}: \{passthrough, randomUnderSampler, SMOTE\}: to check which strategy balances the classes in a
-  better way.
+  \item \texttt{LDA}: \{LDA(), passthrough\}: to check if projecting the data into a lower dimension space that maximizes
+  class separability helps the model.
+  \item \texttt{Sampling}: \{passthrough, randomUnderSampler, SMOTE\}: to check which strategy handles the class imbalance
+  in a better way. Random undersampling reduces the majority class, while SMOTE (Synthetic Minority OverSampling Technique)
+  generates synthetic examples to bolster the minority class representation.
 \end{itemize}
 
 The model uses \texttt{weights='distance'} to weight points by the inverse of their distance, making closer points have
-a greater influence.
+a greater influence in the voting. This mitigates the presence of the outliers in the neighbor points.
 
 Model selection was based on \textbf{maximizing balanced accuracy} via stratified $k$-fold cross-validation to ensure
 robustness across data splits.
 
 \begin{lstlisting}[language=python, basicstyle=\footnotesize\ttfamily, breaklines=true, frame=single, caption={Random Forest Pipeline}]
-numeric_pipe = SkPipeline([
+  numeric_pipe = SkPipeline([
     ('extract', NumericExtractor()),
-    ('impute', SimpleImputer(strategy='median'))
+    ('impute', SimpleImputer(strategy='median')),
+    ('scaler', StandardScaler())
 ])
 
 categorical_pipe = SkPipeline([
-    ('impute', SimpleImputer(strategy='constant', fill_value='missing')),
+    ('impute', SimpleImputer(strategy='constant', fill_value='missing')), # Prevent OHE crash
     ('ohe', OneHotEncoder(drop='first', sparse_output=False, handle_unknown='ignore'))
 ])
 
 date_pipe = SkPipeline([
     ('cyclical', CyclicalDateEncoder()),
-    ('impute', SimpleImputer(strategy='median'))
+    ('impute', SimpleImputer(strategy='median')), # Imputing sin/cos is mathematically valid
+    ('scaler', StandardScaler())
 ])
 
 binary_pipe = SkPipeline([
     ('binary_enc', BinaryModeEncoder()), 
-    ('impute', SimpleImputer(strategy='most_frequent'))
+    ('impute', SimpleImputer(strategy='most_frequent')) # Safety net
+])
+
+# remainder columns are numerical
+remainder_pipe = SkPipeline([
+    ('impute', SimpleImputer(strategy='median')),
+    ('scaler', StandardScaler())
 ])
 
 preprocessor = ColumnTransformer(
@@ -334,14 +342,12 @@ preprocessor = ColumnTransformer(
         ('bin_pipe', binary_pipe, binary_cols),
         ('drop_redundant', 'drop', redundant_cols)
     ], 
-    # Use a median imputer for any columns not listed (passthrough)
-    remainder=SimpleImputer(strategy='median') 
+    remainder=remainder_pipe
 )
 
 full_pipeline = ImbPipeline([
     ('dropper', HighMissingDropper(threshold=20)),
     ('prep', preprocessor),
-    ('scaler', StandardScaler()),
     ('sampler', 'passthrough'),
     ('lda', LDA()),
     ('knn', KNeighborsClassifier(weights='distance'))
@@ -352,7 +358,24 @@ param_grid = {
     'lda': ['passthrough', LDA()],
     'sampler': ['passthrough', RandomUnderSampler(random_state=SEED), SMOTE(random_state=SEED)]
 }
+
+scoring = {
+    'acc': 'accuracy',
+    'balanced_acc': 'balanced_accuracy',
+    'f1_weighted': 'f1_weighted'
+}
+
+grid_search = GridSearchCV(
+    estimator=full_pipeline,
+    param_grid=param_grid,
+    cv=3,
+    scoring=scoring,
+    refit='balanced_acc',
+    n_jobs=-1,
+    verbose=1
+)
 \end{lstlisting}
+
 
 \subsection{Support Vector Machine}
 
@@ -362,43 +385,170 @@ The Support Vector Machine was trained using the following preprocessing steps:
   \texttt{HighMissingDropper(threshold=0.2)}
   \item \textbf{Feature encoding}: Categorical variables were processed using:
   \begin{itemize}
-    \item \texttt{NumericExtractor} for parsing mixed-type numeric fields.
-    \item \texttt{OneHotEncoder} (with \texttt{handle\_unknown='ignore'} for robustness on unseen categories).
-    \item \texttt{CyclicalDateEncoder} to transform temporal features into sine/cosine pairs, preserving cyclical
-    relationships (e.g. month 12 is closer to 1 than to 6).
-    \item \texttt{BinaryModeEncoder} for binary categorical features.
+    \item \texttt{NumericExtractor} for parsing mixed-type numeric fields, followed by median imputing and standard scaling
+    \item \texttt{OneHotEncoder} for nominal categorical columns. Before
+    this I did constant imputation by filling missing values with the string "missing".
+    \item \texttt{CyclicalDateEncoder} to transform temporal categorical features into sine/cosine pairs, preserving cyclical
+    relationships (e.g. month 12 is closer to 1 than to 6). Then I applied median imputation for missing values,
+    and standard scaling which is not needed for sine/cosine but for the year column.
+    \item \texttt{BinaryModeEncoder} for binary categorical features, with imputation with the most frequent class
+    after that.
   \end{itemize}
-  \item \textbf{Dimensionality reduction}: High-cardinality geographic features (\texttt{borrower\_address\_zip} and
-  \texttt{borrower\_address\_state}) were excluded from One-Hot Encoding to prevent sparse feature space explosion, as
-  Random Forest efficiency degrades with high-dimensional sparse inputs despite its robustness to feature dimensionality
-  in general.
-  \item \textbf{Redundant feature removal}: The \texttt{loan\_title} column was dropped due to information leakage or
-  redundancy with other loan descriptors.
-  \item \textbf{Standard scaling}: The columns were scaled to make each faeture contribute approximately proportionately
-  to the algorithm.
-  \item \textbf{Variable sampling}: Variables were sampled to handle class imbalance.
-  \item \textbf{Linear Discriminant Analysis}: LDA was used to find a projection that maximizes class separation. Since
-  the distance between points becomes similar in higher dimensions, this greatly benefits the classifier.
+  \item \textbf{Redundant feature removal}: The \texttt{loan\_title} column was dropped due to redundancy with
+  \texttt{loan\_purpose\_category}
+  \item \textbf{Numerical imputation}: The remaining numerical columns were treated with median imputing and standard scaling,
+  as SVMs are sensitive to the scale of input features due to their reliance on distance-based calculations.
 \end{itemize}
 
 A grid search was performed to optimize the following hyperparameters:
 \begin{itemize}
-  \item \texttt{max\_iter}: \{1000, 10000\}: to check if more iterations helps the model.
-  \item \texttt{C}: \{0.01, 0.1, 1, 10, 100\}: to 
+  \item \texttt{max\_iter}: \{1000, 10000\}: to ensure the algorithm reaches convergence.
+  \item \texttt{C}: \{0.01, 0.1, 1, 10, 100\}: to control the bias-variance tradeoff; smaller values of C create a wider margin
+  (more regularization), while larger values penalize misclassifications more heavily, potentially leading to overfitting.
+  \item \texttt{LDA}: \{'passthrough', LDA()\}: to check if dimensionality reduction via Linear Discriminant Analysis improves
+  performance by projecting the data into a subspace that maximizes class separability.
 \end{itemize}
 
 The model uses \texttt{class_weights='balanced'} to to account for class imbalance.
 Model selection was based on \textbf{maximizing balanced accuracy} via stratified $k$-fold cross-validation to ensure
 robustness across data splits.
 
+\begin{lstlisting}[language=python, basicstyle=\footnotesize\ttfamily, breaklines=true, frame=single, caption={Random Forest Pipeline}]
+  numeric_pipe = SkPipeline([
+      ('extract', NumericExtractor()),
+      ('impute', SimpleImputer(strategy='median')),
+      ('scaler', StandardScaler())
+  ])
+  
+  categorical_pipe = SkPipeline([
+      ('impute', SimpleImputer(strategy='constant', fill_value='missing')),
+      ('ohe', OneHotEncoder(drop='first', sparse_output=False, handle_unknown='ignore'))
+  ])
+  
+  date_pipe = SkPipeline([
+      ('cyclical', CyclicalDateEncoder()),
+      ('impute', SimpleImputer(strategy='median')),
+      ('scaler', StandardScaler())
+  ])
+  
+  binary_pipe = SkPipeline([
+      ('binary_enc', BinaryModeEncoder()), 
+      ('impute', SimpleImputer(strategy='most_frequent'))
+  ])
+  
+  # remainder columns are numerical
+  remainder_pipe = SkPipeline([
+      ('impute', SimpleImputer(strategy='median')),
+      ('scaler', StandardScaler())
+  ])
+  
+  preprocessor = ColumnTransformer(
+      transformers=[
+          ('num_pipe', numeric_pipe, extract_fields),
+          ('cat_pipe', categorical_pipe, one_hot_encoding_cols),
+          ('date_pipe', date_pipe, date_fields),
+          ('bin_pipe', binary_pipe, binary_cols),
+          ('drop_redundant', 'drop', redundant_cols)
+      ], 
+      remainder=remainder_pipe 
+  )
+  
+  full_pipeline = SkPipeline([
+      ('dropper', HighMissingDropper(threshold=20)),
+      ('prep', preprocessor),
+      ('lda', LDA()),
+      ('svc', SVC(kernel="rbf", class_weight="balanced", C=1.0, max_iter=10000))
+  ])
+  
+  param_grid = {
+      'svc__max_iter': [1000, 10000],
+      'svc__C': [0.01, 0.1, 1, 10, 100],
+      'lda': ['passthrough', LDA()]
+  }
+  
+  scoring = {
+      'acc': 'accuracy',
+      'balanced_acc': 'balanced_accuracy',
+      'f1_weighted': 'f1_weighted'
+  }
+  
+  grid_search = GridSearchCV(
+      estimator=full_pipeline,
+      param_grid=param_grid,
+      cv=5,
+      scoring=scoring,
+      refit='balanced_acc',
+      n_jobs=-1,
+      verbose=1
+  )
+\end{lstlisting}
+
+
 \section{Deep Learning models}
 
 \subsection{FeedForward network}
+
+The FeedForward network was trained using the following preprocessing steps:
+\begin{itemize}
+  \item \textbf{Missing value thresholding}: Columns with more than 20\% missing values were dropped using
+  \texttt{HighMissingDropper(threshold=0.2)}
+  \item \textbf{Feature encoding}: Categorical variables were processed using:
+  \begin{itemize}
+    \item \texttt{NumericExtractor} for parsing mixed-type numeric fields, followed by median imputing and standard scaling
+    \item \texttt{OneHotEncoder} for nominal categorical columns. Before
+    this I did constant imputation by filling missing values with the string "missing".
+    \item \texttt{CyclicalDateEncoder} to transform temporal categorical features into sine/cosine pairs, preserving cyclical
+    relationships (e.g. month 12 is closer to 1 than to 6). Then I applied median imputation for missing values,
+    and standard scaling which is not needed for sine/cosine but for the year column.
+    \item \texttt{BinaryModeEncoder} for binary categorical features, with imputation with the most frequent class
+    after that.
+  \end{itemize}
+  \item \textbf{Redundant feature removal}: The \texttt{loan\_title} column was dropped due to redundancy with
+  \texttt{loan\_purpose\_category}
+  \item \textbf{Numerical imputation}: The remaining numerical columns were treated with median imputing and standard scaling,
+  since neural networks are sensitive to the scale of input features.
+  \item \textbf{Zip code encoding}: The \texttt{zip\_pipeline} column was imputed by filling the missing values with the string
+  "missing" and by ordinal encoding, to prepare the column to be embedded by the neural network.
+\end{itemize}
+
+\paragraph{Network architecture}
+The network is a FeedForward network that embeds the zip code, concatenates it with the numerical features and then
+for each layer of the network applies:
+\begin{itemize}
+  \item Linear layer: to perform affine transformations and learn complex linear combinations of the input features.
+  \item Batch Normalization: to stabilize and accelerate training by re-centering and re-scaling the inputs to each
+  layer, which mitigates the "internal covariate shift".
+  \item Leaky ReLU activation: to introduce non-linearity while preventing the "dying ReLU" problem by allowing a small,
+  non-zero gradient for negative input values.
+  \item Dropout with probability 0.2 as a regularization technique to prevent overfitting by randomly zeroing 20\% of the
+  neurons during training, forcing the network to learn redundant representations.
+\end{itemize}
+
+\paragraph{Training and hyperparameters}
+The fixed hyperparameters are:
+\begin{itemize}
+  \item \texttt{CrossEntropyLoss}, with class weights: to penalize misclassifications of the minority class more heavily,
+        directly adressing the dataset's class imbalance.
+  \item \texttt{AdamW} optimizer with a learning rate of $\mu = 1*10^{-3}$: chosen for the adaptive learning rate and
+        weight decay, to provide more stable gradient estimates.
+  \item \texttt{ReduceLROnPlateau}: scheduler (with a minimum of $\mu = 1*10^{-6}$) to reduce the learning rate when the
+        validation loss plateaus, to make the optimizer converge more precisely on the minimum.
+  \item \textbf{Epochs and Batch size}: the model was trained for 200 epochs with a batch size of 1024.
+\end{itemize}
+
+A grid search was performed to optimize the \texttt{hidden\_dims} hyperparameter, the evaluated dimensions were:
+\{[128, 64, 32], [256, 128, 64, 32], [64, 32]\}. This determines the optimal balance between bias and variance.
+
+\begin{lstlisting}[language=python, basicstyle=\footnotesize\ttfamily, breaklines=true, frame=single, caption={Random Forest Pipeline}]
+\end{lstlisting}
+
 
 \section{Deep Tabular models}
 
 \subsection{TabNet}
 
+
 \subsection{TabTransformer}
+
 
 \end{document}
