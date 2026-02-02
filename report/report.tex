@@ -253,7 +253,7 @@ preprocessor = ColumnTransformer(
 full_pipeline = Pipeline([
     ('dropper', HighMissingDropper(threshold=20)),
     ('prep', preprocessor),
-    ('rf', RandomForestClassifier(class_weight='balanced', n_jobs=-1, random_state=42))
+    ('rf', RandomForestClassifier(class_weight='balanced', n_jobs=-1))
 ])
 
 param_grid = {
