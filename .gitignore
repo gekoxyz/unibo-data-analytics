@@ -2,6 +2,9 @@
 dataset.csv
 .DS_Store
 *.pdf
+saved_models
+.pt_tmp
+lightning_logs
 
 ## Core latex/pdflatex auxiliary files:
 *.aux
