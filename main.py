@@ -28,20 +28,14 @@ def fix_random(seed: int) -> None:
 SEED = 1337
 fix_random(SEED)
 
-pd.set_option('display.max_columns', None)
-pd.set_option('display.max_rows', None)
-
 DATASET_PATH = "dataset_train/dataset.csv"
 dataset = pd.read_csv(DATASET_PATH, delimiter=",")
-
-print(f"Shape of the dataset: {dataset.shape}")
-duplicates = dataset[dataset.duplicated()]
-print(f"Number of duplicates in the dataset: {duplicates.shape[0]}")
 
 name = getName()
 print(name)
 
-classifiers = ["knn", "rf", "svm", "ff"]
+classifiers = ["knn", "rf", "svm", "ff", "tb", "tf"]
+# classifiers = ["tb", "tf"]
 
 for clfName in classifiers:
   print(f"--- {clfName} ---")
