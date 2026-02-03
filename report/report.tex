@@ -17,30 +17,6 @@
 \usepackage{listings}
 \usepackage{xcolor}
 
-% \definecolor{codegreen}{rgb}{0,0.6,0}
-% \definecolor{codegray}{rgb}{0.5,0.5,0.5}
-% \definecolor{codepurple}{rgb}{0.58,0,0.82}
-% \definecolor{backcolour}{rgb}{0.95,0.95,0.92}
-
-% \lstdefinestyle{mystyle}{
-%     backgroundcolor=\color{backcolour},   
-%     commentstyle=\color{codegreen},
-%     keywordstyle=\color{magenta},
-%     numberstyle=\tiny\color{codegray},
-%     stringstyle=\color{codepurple},
-%     basicstyle=\ttfamily\footnotesize,
-%     breakatwhitespace=false,         
-%     breaklines=true,                 
-%     captionpos=b,                    
-%     keepspaces=true,                 
-%     numbers=left,                    
-%     numbersep=5pt,                  
-%     showspaces=false,                
-%     showstringspaces=false,
-%     showtabs=false,                  
-%     tabsize=2
-% }
-
 \usepackage{sourcecodepro}
 
 % Nord / Minimal palette
@@ -53,7 +29,7 @@
 
 \lstdefinestyle{modern-light}{
     backgroundcolor=\color{bglight},
-    basicstyle=\ttfamily\small\color{fgdark},
+    basicstyle=\ttfamily\footnotesize\color{fgdark},
     commentstyle=\color{commentgreen}\itshape\small,
     keywordstyle=\color{keywordblue}\bfseries,
     stringstyle=\color{stringteal},
@@ -200,10 +176,12 @@ data types:
 
 For categorical columns I used sklearn's \verb|OneHotEncoder|.
 
+
 \section{Machine Learning models}
 
 \subsection{Random Forest classifier}
 
+\subsubsection{Preprocessing}
 The Random Forest model was trained using the following preprocessing steps:
 \begin{itemize}
   \item \textbf{Missing value thresholding}: Columns with more than 20\% missing values were dropped using
@@ -218,15 +196,17 @@ The Random Forest model was trained using the following preprocessing steps:
   \end{itemize}
   \item \textbf{Dimensionality reduction}: High-cardinality nominal categorical features (\texttt{borrower\_address\_zip} and
   \texttt{borrower\_address\_state}) were excluded from One-Hot Encoding to prevent feature space explosion, as
-  Random Forest efficiency degrades with high-dimensional sparse inputs despite its robustness to feature dimensionality
-  in general.
+  Random Forest efficiency degrades with high-dimensional sparse inputs (882 unique values for zip code and 52 for state)
+  despite its robustness to feature dimensionality in general.
   \item \textbf{Redundant feature removal}: The \texttt{loan\_title} column was dropped due to redundancy with
   \texttt{loan\_purpose\_category}
 \end{itemize}
 
-Missing values were not imputed, as Random Forests handle them natively during tree construction.
-Variables were not scaled since Random Forests make decision based on higher/lower and cannot be influenced by feature
-size.
+Missing values were not imputed, becuase Random Forests handle them natively during tree construction.
+Variables were not scaled since Random Forests are scale-invariant, and partition data based on relative thresholds
+rather than absolute magnitudes.
+
+\subsubsection{Modeling and hyperparameter tuning}
 
 A grid search was performed to optimize the following hyperparameters:
 \begin{itemize}
@@ -238,34 +218,39 @@ A grid search was performed to optimize the following hyperparameters:
 The model uses \texttt{class\_weight='balanced'} to account for class imbalance. Model selection was based on
 \textbf{maximizing balanced accuracy} via stratified $k$-fold cross-validation to ensure robustness across data splits.
 
-\begin{lstlisting}[language=python, basicstyle=\footnotesize\ttfamily, breaklines=true, frame=single, caption={Random Forest Pipeline}]
-preprocessor = ColumnTransformer(
-    transformers=[
-        ('extract', NumericExtractor(), extract_fields),
-        ('categorical', OneHotEncoder(drop='first', sparse_output=False, handle_unknown='ignore'), one_hot_encoding_cols),
-        ('date', CyclicalDateEncoder(), date_fields),
-        ('binary', BinaryModeEncoder(), binary_cols),
-        ('drop_redundant', 'drop', redundant_cols)
-    ], 
-    remainder="passthrough"
-)
+\subsubsection{Results}
 
-full_pipeline = Pipeline([
-    ('dropper', HighMissingDropper(threshold=20)),
-    ('prep', preprocessor),
-    ('rf', RandomForestClassifier(class_weight='balanced', n_jobs=-1))
-])
+The results for the top configurations are summarized in Table \ref{tab:rf_results}.
 
-param_grid = {
-    'rf__max_depth': [20, None],
-    'rf__n_estimators': [100, 200],
-    'rf__min_samples_leaf': [1, 5]
+\begin{table}[h]
+\centering
+\caption{Performance Comparison of Random Forest Configurations}
+\label{tab:rf_results}
+\resizebox{\textwidth}{!}{
+\begin{tabular}{lccccccc}
+\hline
+\textbf{ID} & \textbf{Depth} & \textbf{Min Leaf} & \textbf{Estimators} & \textbf{Accuracy} & \textbf{Bal. Acc.} & \textbf{Weighted F1-Score} & \textbf{Time (s)} \\ \hline
+1 & None & 5 & 200 & \textbf{0.8739} & \textbf{0.8281} & \textbf{0.8728} & 44.97 \\
+2 & 20 & 5 & 200 & 0.8717 & 0.8237 & 0.8706 & 71.26 \\
+3 & None & 1 & 200 & 0.8722 & 0.8169 & 0.8703 & 76.10 \\
+4 & 20 & 1 & 200 & 0.8716 & 0.8175 & 0.8699 & 76.94 \\ \hline
+\end{tabular}
 }
-\end{lstlisting}
+\end{table}
+
+The optimal model (ID 1) is also significantly faster to train (45s) compared to the unregularized models (76s).
+By enforcing a minimum leaf size of 5, the trees are shallower and less complex, leading to a reduction in training time without
+sacrificing accuracy.
+
+Increasing \texttt{n\_estimators} from 100 to 200 resulted in better stability and performance across all depth configurations.
+
+We select the configuration with \texttt{max\_depth=None}, \texttt{min\_samples\_leaf=5}, and \texttt{n\_estimators=200} as
+the optimal model. It provides the highest predictive performance across all metrics and at the same time it's much faster to train.
 
 
 \subsection{K-Nearest Neighbours}
 
+\subsubsection{Preprocessing}
 The $K$-Nearest Neighbours model was trained using the following preprocessing steps:
 
 \begin{itemize}
@@ -283,11 +268,14 @@ The $K$-Nearest Neighbours model was trained using the following preprocessing s
     after that.
   \end{itemize}
   \item \textbf{Redundant feature removal}: The \texttt{loan\_title} column was dropped due to redundancy with
-  \texttt{loan\_purpose\_category}
+  \texttt{loan\_purpose\_category}. The \texttt{borrower\_address\_state} columns was dropped
+  due to redundancy with \texttt{borrower\_address\_zip}.  
   \item \textbf{Numerical imputation}: The remaining numerical columns were treated with median imputing and standard scaling,
   because KNN relies on distance metrics, scaling is mandatory to prevent features with larger ranges from dominating the
   distance calculation.
 \end{itemize}
+
+\subsubsection{Modeling and hyperparameter tuning}
 
 A grid search was performed to optimize the following hyperparameters:
 \begin{itemize}
@@ -305,79 +293,47 @@ a greater influence in the voting. This mitigates the presence of the outliers i
 Model selection was based on \textbf{maximizing balanced accuracy} via stratified $k$-fold cross-validation to ensure
 robustness across data splits.
 
-\begin{lstlisting}[language=python, basicstyle=\footnotesize\ttfamily, breaklines=true, frame=single, caption={Random Forest Pipeline}]
-  numeric_pipe = SkPipeline([
-    ('extract', NumericExtractor()),
-    ('impute', SimpleImputer(strategy='median')),
-    ('scaler', StandardScaler())
-])
+\subsubsection{Results}
+The results for the top 5 configurations, and a cnofiguration without LDA to highlight the differences in performance
+are summarized in Table \ref{tab:knn_results}
 
-categorical_pipe = SkPipeline([
-    ('impute', SimpleImputer(strategy='constant', fill_value='missing')), # Prevent OHE crash
-    ('ohe', OneHotEncoder(drop='first', sparse_output=False, handle_unknown='ignore'))
-])
+\begin{table}[h]
+  \centering
+  \caption{Impact of LDA and Neighbors on KNN Performance}
+  \label{tab:knn_results}
+  \resizebox{\textwidth}{!}{
+  \begin{tabular}{llccccccc}
+  \hline
+  \textbf{ID} & \textbf{$k$} & \textbf{LDA} & \textbf{Sampler} & \textbf{Acc} & \textbf{Bal. Acc} & \textbf{Weighted F1-Score} & \textbf{Time (s)} \\ \hline
+  15 & 7 & Yes & None & \textbf{0.8209} & \textbf{0.7531} & \textbf{0.8198} & 2.81 \\
+  9  & 5 & Yes & None & 0.8145 & 0.7456 & 0.8135 & 2.87 \\
+  17 & 7 & Yes & SMOTE & 0.7899 & 0.7454 & 0.7903 & 6.49 \\
+  16 & 7 & Yes & randomUnderSampler & 0.7773 & 0.7399 & 0.7775 & 1.64 \\
+  11 & 5 & Yes & SMOTE & 0.782485 & 0.7372 & 0.7829 & 9.04 \\
+  12 & 7 & No & None & 0.4285 & 0.3535 & 0.4190 & 1.42 \\ \hline
+  \end{tabular}
+  }
+\end{table}
 
-date_pipe = SkPipeline([
-    ('cyclical', CyclicalDateEncoder()),
-    ('impute', SimpleImputer(strategy='median')), # Imputing sin/cos is mathematically valid
-    ('scaler', StandardScaler())
-])
+The most significant factor in model performance was the inclusion of Linear Discriminant Analysis (LDA). Configurations without LDA
+(ID 12) failed to learn effectively, and had a balanced accuracy of only $35.4\%$. This confirms that the high dimensionality of the
+preprocessed feature space renders Euclidean distance metrics ineffective. LDA projected the data into a separable, lower-dimensional
+space, and improved the performance.
 
-binary_pipe = SkPipeline([
-    ('binary_enc', BinaryModeEncoder()), 
-    ('impute', SimpleImputer(strategy='most_frequent')) # Safety net
-])
+Performance consistently improved as $k$ increased from 3 to 7. The configuration with $k=7$ (ID 15) offered the best stability and
+generalization, likely smoothing out decision boundaries that were too noisy at lower $k$ values.
 
-# remainder columns are numerical
-remainder_pipe = SkPipeline([
-    ('impute', SimpleImputer(strategy='median')),
-    ('scaler', StandardScaler())
-])
+While SMOTE (ID 17) maintained a good balanced accuracy ($74.5\%$), it slightly degraded accuracy and doubled the training
+time ($6.49s$) compared to the best model. Since the LDA transformation naturally maximizes class separability, additional synthetic
+oversampling provided no net benefit.
 
-preprocessor = ColumnTransformer(
-    transformers=[
-        ('num_pipe', numeric_pipe, extract_fields),
-        ('cat_pipe', categorical_pipe, one_hot_encoding_cols),
-        ('date_pipe', date_pipe, date_fields),
-        ('bin_pipe', binary_pipe, binary_cols),
-        ('drop_redundant', 'drop', redundant_cols)
-    ], 
-    remainder=remainder_pipe
-)
-
-full_pipeline = ImbPipeline([
-    ('dropper', HighMissingDropper(threshold=20)),
-    ('prep', preprocessor),
-    ('sampler', 'passthrough'),
-    ('lda', LDA()),
-    ('knn', KNeighborsClassifier(weights='distance'))
-])
-
-param_grid = {
-    'knn__n_neighbors': [3, 5, 7],
-    'lda': ['passthrough', LDA()],
-    'sampler': ['passthrough', RandomUnderSampler(random_state=SEED), SMOTE(random_state=SEED)]
-}
-
-scoring = {
-    'acc': 'accuracy',
-    'balanced_acc': 'balanced_accuracy',
-    'f1_weighted': 'f1_weighted'
-}
-
-grid_search = GridSearchCV(
-    estimator=full_pipeline,
-    param_grid=param_grid,
-    cv=3,
-    scoring=scoring,
-    refit='balanced_acc',
-    n_jobs=-1,
-    verbose=1
-)
-\end{lstlisting}
+We select the configuration with \textbf{$k=7$, LDA enabled, and no sampler}. It achieves the highest metrics while maintaining
+low computational cost.
 
 
 \subsection{Support Vector Machine}
+
+\subsubsection{Preprocessing}
 
 The Support Vector Machine was trained using the following preprocessing steps:
 \begin{itemize}
@@ -395,10 +351,13 @@ The Support Vector Machine was trained using the following preprocessing steps:
     after that.
   \end{itemize}
   \item \textbf{Redundant feature removal}: The \texttt{loan\_title} column was dropped due to redundancy with
-  \texttt{loan\_purpose\_category}
+  \texttt{loan\_purpose\_category}. The \texttt{borrower\_address\_state} columns was dropped
+  due to redundancy with \texttt{borrower\_address\_zip}.  
   \item \textbf{Numerical imputation}: The remaining numerical columns were treated with median imputing and standard scaling,
   as SVMs are sensitive to the scale of input features due to their reliance on distance-based calculations.
 \end{itemize}
+
+\subsubsection{Modeling and hyperparameter tuning}
 
 A grid search was performed to optimize the following hyperparameters:
 \begin{itemize}
@@ -409,84 +368,50 @@ A grid search was performed to optimize the following hyperparameters:
   performance by projecting the data into a subspace that maximizes class separability.
 \end{itemize}
 
-The model uses \texttt{class_weights='balanced'} to to account for class imbalance.
+The model uses \texttt{class\_weights='balanced'} to to account for class imbalance.
 Model selection was based on \textbf{maximizing balanced accuracy} via stratified $k$-fold cross-validation to ensure
 robustness across data splits.
 
-\begin{lstlisting}[language=python, basicstyle=\footnotesize\ttfamily, breaklines=true, frame=single, caption={Random Forest Pipeline}]
-  numeric_pipe = SkPipeline([
-      ('extract', NumericExtractor()),
-      ('impute', SimpleImputer(strategy='median')),
-      ('scaler', StandardScaler())
-  ])
-  
-  categorical_pipe = SkPipeline([
-      ('impute', SimpleImputer(strategy='constant', fill_value='missing')),
-      ('ohe', OneHotEncoder(drop='first', sparse_output=False, handle_unknown='ignore'))
-  ])
-  
-  date_pipe = SkPipeline([
-      ('cyclical', CyclicalDateEncoder()),
-      ('impute', SimpleImputer(strategy='median')),
-      ('scaler', StandardScaler())
-  ])
-  
-  binary_pipe = SkPipeline([
-      ('binary_enc', BinaryModeEncoder()), 
-      ('impute', SimpleImputer(strategy='most_frequent'))
-  ])
-  
-  # remainder columns are numerical
-  remainder_pipe = SkPipeline([
-      ('impute', SimpleImputer(strategy='median')),
-      ('scaler', StandardScaler())
-  ])
-  
-  preprocessor = ColumnTransformer(
-      transformers=[
-          ('num_pipe', numeric_pipe, extract_fields),
-          ('cat_pipe', categorical_pipe, one_hot_encoding_cols),
-          ('date_pipe', date_pipe, date_fields),
-          ('bin_pipe', binary_pipe, binary_cols),
-          ('drop_redundant', 'drop', redundant_cols)
-      ], 
-      remainder=remainder_pipe 
-  )
-  
-  full_pipeline = SkPipeline([
-      ('dropper', HighMissingDropper(threshold=20)),
-      ('prep', preprocessor),
-      ('lda', LDA()),
-      ('svc', SVC(kernel="rbf", class_weight="balanced", C=1.0, max_iter=10000))
-  ])
-  
-  param_grid = {
-      'svc__max_iter': [1000, 10000],
-      'svc__C': [0.01, 0.1, 1, 10, 100],
-      'lda': ['passthrough', LDA()]
+\subsubsection{Results}
+
+The results for the top 3 configurations, a configuration with 1000 iterations, and one with a high regularization 
+to highlight the differences in performance are summarized in Table \ref{tab:svm_results}
+
+\begin{table}[h]
+  \centering
+  \caption{Impact of LDA and Convergence on SVM Performance}
+  \label{tab:svm_results}
+  \resizebox{\textwidth}{!}{%
+  \begin{tabular}{llccccccc}
+  \hline
+  \textbf{ID} & \textbf{LDA} & \textbf{C} & \textbf{Max Iter} & \textbf{Accuracy} & \textbf{Bal. Acc} & \textbf{Weighted F1-Score} & \textbf{Time (s)} \\ \hline
+  17 & Yes & 10   & 10000 & \textbf{0.8313} & \textbf{0.7780} &  \textbf{0.8307} & \textbf{28.68} \\
+  5  & No  & 1    & 10000 & 0.8195 & 0.7779 & 0.8192 & 801.69 \\
+  15 & Yes & 1    & 10000 & 0.8287 & 0.7759 & 0.8280 & 28.01 \\
+  11 & Yes & 0.01 & 10000 & 0.6331 & 0.6554 & 0.5539 & 51.72 \\
+  6  & No  & 10   & 1000  & 0.6274 & 0.6021 & 0.6317 & 168.69 \\ \hline
+  \end{tabular}%
   }
-  
-  scoring = {
-      'acc': 'accuracy',
-      'balanced_acc': 'balanced_accuracy',
-      'f1_weighted': 'f1_weighted'
-  }
-  
-  grid_search = GridSearchCV(
-      estimator=full_pipeline,
-      param_grid=param_grid,
-      cv=5,
-      scoring=scoring,
-      refit='balanced_acc',
-      n_jobs=-1,
-      verbose=1
-  )
-\end{lstlisting}
+\end{table}
+
+Configuration 5 (No LDA) achieved a balanced accuracy of $77.8\%$, practically identical to the best model (ID 17). However,
+training the model on the full feature set took \textbf{801 seconds}, whereas the LDA-reduced feature set took only \textbf{28 seconds}.
+
+The best configuration with 1000 iterations (ID 6) failed to converge properly, resulting in a performance drop of
+nearly $17\%$ compared to the 10000 iterations counterparts.
+
+The model performed best with a moderate regularization parameter ($C=10$) when combined
+with LDA. Very high regularization ($C=0.01$, ID 11) caused the model to underfit, dropping balanced accuracy to $65.5\%$.
+
+We select the configuration with \textbf{($C=10$, LDA Enabled, Max Iter=10000)}. While ID 5 offers similar accuracy, ID 17 is
+vastly superior in terms of training efficiency.
 
 
 \section{Deep Learning models}
 
 \subsection{FeedForward network}
+
+\subsubsection{Preprocessing}
 
 The FeedForward network was trained using the following preprocessing steps:
 \begin{itemize}
@@ -504,12 +429,15 @@ The FeedForward network was trained using the following preprocessing steps:
     after that.
   \end{itemize}
   \item \textbf{Redundant feature removal}: The \texttt{loan\_title} column was dropped due to redundancy with
-  \texttt{loan\_purpose\_category}
+  \texttt{loan\_purpose\_category}. The \texttt{borrower\_address\_state} columns was dropped
+  due to redundancy with \texttt{borrower\_address\_zip}.
   \item \textbf{Numerical imputation}: The remaining numerical columns were treated with median imputing and standard scaling,
   since neural networks are sensitive to the scale of input features.
   \item \textbf{Zip code encoding}: The \texttt{zip\_pipeline} column was imputed by filling the missing values with the string
-  "missing" and by ordinal encoding, to prepare the column to be embedded by the neural network.
+  "missing" and by integer encoding, to prepare the column to be embedded by the neural network.
 \end{itemize}
+
+\subsubsection{Modeling and hyperparameter tuning}
 
 \paragraph{Network architecture}
 The network is a FeedForward network that embeds the zip code, concatenates it with the numerical features and then
@@ -528,10 +456,10 @@ for each layer of the network applies:
 The fixed hyperparameters are:
 \begin{itemize}
   \item \texttt{CrossEntropyLoss}, with class weights: to penalize misclassifications of the minority class more heavily,
-        directly adressing the dataset's class imbalance.
-  \item \texttt{AdamW} optimizer with a learning rate of $\mu = 1*10^{-3}$: chosen for the adaptive learning rate and
+        and handle the class imbalance.
+  \item \texttt{AdamW} optimizer with a learning rate of $\eta = 1*10^{-3}$: chosen for the adaptive learning rate and
         weight decay, to provide more stable gradient estimates.
-  \item \texttt{ReduceLROnPlateau}: scheduler (with a minimum of $\mu = 1*10^{-6}$) to reduce the learning rate when the
+  \item \texttt{ReduceLROnPlateau}: scheduler (with a minimum of $\eta = 1*10^{-6}$) to reduce the learning rate when the
         validation loss plateaus, to make the optimizer converge more precisely on the minimum.
   \item \textbf{Epochs and Batch size}: the model was trained for 200 epochs with a batch size of 1024.
 \end{itemize}
@@ -539,16 +467,229 @@ The fixed hyperparameters are:
 A grid search was performed to optimize the \texttt{hidden\_dims} hyperparameter, the evaluated dimensions were:
 \{[128, 64, 32], [256, 128, 64, 32], [64, 32]\}. This determines the optimal balance between bias and variance.
 
-\begin{lstlisting}[language=python, basicstyle=\footnotesize\ttfamily, breaklines=true, frame=single, caption={Random Forest Pipeline}]
-\end{lstlisting}
+\subsubsection{Results}
 
+The results for the top 3 configurations are summarized in table \ref{tab:mlp_results}
+
+\begin{table}[h]
+\centering
+\caption{Performance Comparison of MLP Architectures}
+\label{tab:mlp_results}
+\begin{tabular}{lcccc}
+\hline
+\textbf{ID} & \textbf{Hidden Layers} & \textbf{Accuracy} & \textbf{Bal. Acc.} & \textbf{Weighted F1-Score} \\ \hline
+1 & $[256, 128, 64, 32]$ & 0.8948 & \textbf{0.8599} & 0.8946 \\
+0 & $[128, 64, 32]$      & \textbf{0.8959} & 0.8579 & \textbf{0.8959} \\
+2 & $[64, 32]$           & 0.8878 & 0.8430 & 0.8879 \\ \hline
+\end{tabular}
+\end{table}
+
+The \textbf{Deep} configuration (ID 1) achieved a $0.2\%$ improvement in balanced accuracy over the \textbf{Medium} one (ID 0).
+However, it actually performed slightly worse in overall Accuracy and Weighted F1-Score. This indicates that the added 
+complexity of the larger network does not yield a meaningful performance benefit.
+
+By keeping the first hidden layer at 128 units rather than 256, the Medium model reduces the parameter 
+count of the dense layers, leading to faster inference times without sacrificing predictive power.
+
+We select the \textbf{Medium configuration} (ID 0). It offers the highest overall Accuracy and F1-Score, while avoiding the
+computational overhead of the deeper architecture.
+
+Figure \ref{fig:ff_training} illustrates the training dynamics for the selected Medium configuration over 200 epochs.
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=\textwidth]{ff_training_plots.png}
+  \caption{Left: Cross-Entropy Loss showing convergence around epoch 70. Right: Evolution of Balanced Accuracy and F1-Score.}
+  \label{fig:ff_training}
+\end{figure}
 
 \section{Deep Tabular models}
 
 \subsection{TabNet}
 
+\subsubsection{Preprocessing}
+The TabNet was trained using the following preprocessing steps:
+\begin{itemize}
+  \item \textbf{Missing value thresholding}: Columns with more than 20\% missing values were dropped using
+  \texttt{HighMissingDropper(threshold=0.2)}
+  \item \textbf{Feature encoding}: Categorical variables were processed using:
+  \begin{itemize}
+    \item \texttt{NumericExtractor} for parsing mixed-type numeric fields, followed by median imputing and standard scaling
+    \item \texttt{CyclicalDateEncoder} to transform temporal categorical features into sine/cosine pairs, preserving cyclical
+    relationships (e.g. month 12 is closer to 1 than to 6). Then I applied median imputation for missing values,
+    and standard scaling which is not needed for sine/cosine but for the year column.
+    \item \texttt{BinaryModeEncoder} for binary categorical features, with imputation with the most frequent class
+    after that.
+  \end{itemize}
+  \item \textbf{Redundant feature removal}: The \texttt{loan\_title} column was dropped due to redundancy with
+  \texttt{loan\_purpose\_category}. The \texttt{borrower\_address\_state} columns was dropped due to redundancy with
+  \texttt{borrower\_address\_zip}.
+  \item \textbf{Numerical imputation}: The remaining numerical columns were treated with median imputing and standard scaling,
+  since neural networks are sensitive to the scale of input features.
+\end{itemize}
+
+The columns that were embedded or one-hot encoded in the previous architecture are now passed to the TabNet configuration to
+be embedded by the network.
+
+\subsubsection{Modeling and hyperparameter tuning}
+
+To use TabNet I used the library \texttt{pytorch\_tabular}, which requires setting up a \texttt{TabNetModelConfig}.
+
+The fixed hyperparameters are:
+\begin{itemize}
+  \item \texttt{CrossEntropyLoss}, with class weights: to penalize misclassifications of the minority class more heavily
+  and handle the class imbalance.
+  \item \texttt{AdamW} optimizer with a learning rate of $\eta = 1*10^{-3}$: chosen for the adaptive learning rate and
+  weight decay, to provide more stable gradient estimates.
+  \item \texttt{ReduceLROnPlateau}: scheduler (with a minimum of $\eta = 1*10^{-5}$) to reduce the learning rate when the
+  validation loss plateaus, to make the optimizer converge more precisely on the minimum.
+  \item \textbf{Epochs and Batch size}: the model was trained for 200 epochs with a batch size of 512.
+\end{itemize}
+
+To balance predictive performance with computational efficiency, we evaluated three incrementally scaled configurations
+(Table \ref{tab:tabnet_configs}). This approach tests the impact of model capacity without the cost of an exhaustive grid search.
+
+\begin{table}[h]
+\centering
+\caption{TabNet Configurations}
+\label{tab:tabnet_configs}
+\begin{tabular}{lcccc}
+\hline
+\textbf{Scale} & $n_d, n_a$ & $n_{steps}$ & $\gamma$ \\ \hline
+Small & 8 & 3 & 1.2 \\
+Medium & 16 & 5 & 1.3 \\
+Large & 32 & 7 & 1.5 \\ \hline
+\end{tabular}
+\end{table}
+
+\textbf{Parameter Reasoning:}
+\begin{itemize}
+  \item \textbf{Width ($n_d, n_a$):} Increased to allow higher-dimensional feature embeddings and attention masks.
+  \item \textbf{Depth ($n_{steps}$):} Scaled to evaluate if the data requires more sequential decision steps for
+  complex patterns.
+  \item \textbf{Relaxation ($\gamma$):} Increased alongside depth to allow the model to reuse features more flexibly
+  across deeper architectures.
+\end{itemize}
+
+\subsubsection{Results}
+The performance of the three configurations was evaluated using Accuracy, Balanced Accuracy, and weighted F1-Score.
+The results are summarized in Table \ref{tab:tabnet_results}.
+
+\begin{table}[h]
+\centering
+\caption{Performance Comparison of TabNet Configurations}
+\label{tab:tabnet_results}
+\begin{tabular}{lcccccc}
+\hline
+\textbf{Scale} & $n_d, n_a$ & $n_{steps}$ & $\gamma$ & \textbf{Accuracy} & \textbf{Balanced Accuracy} & \textbf{Weighted F1-Score} \\ \hline
+Small  & 8  & 3 & 1.2 & 0.8993 & 0.8678 & 0.8993 \\
+Medium & 16 & 5 & 1.3 & \textbf{0.9000} & \textbf{0.8698} & \textbf{0.8999} \\
+Large  & 32 & 7 & 1.5 & 0.7951 & 0.7247 & 0.7939 \\ \hline
+\end{tabular}
+\end{table}
+
+The results indicate that the \textbf{Medium} configuration (ID 1) achieves the highest performance across all metrics,
+though the margin of improvement over the \textbf{Small} configuration is minimal. The \textbf{Large} configuration (ID 2) shows
+a significant drop in performance (approximately 10\% in accuracy). This suggests that increasing the model depth ($n_{steps}=7$)
+and width ($n_d, n_a=32$) beyond a certain point leads to overfitting or numerical instability on this specific dataset.
+
+While the \textbf{Medium} configuration (ID 1) yielded the highest absolute metrics, the marginal improvement over the
+\textbf{Small} configuration (ID 0) is only $0.2\%$ in balanced accuracy. To keep the parameter count and comoputational overhead
+low , we select the \textbf{Small model} as the optimal choice. This decision prioritizes \textbf{inference efficiency and model
+parsimony} without sacrificing meaningful predictive performance.
+
 
 \subsection{TabTransformer}
 
+\subsubsection{Preprocessing}
+The TabTransformer was trained using the following preprocessing steps:
+\begin{itemize}
+  \item \textbf{Missing value thresholding}: Columns with more than 20\% missing values were dropped using
+  \texttt{HighMissingDropper(threshold=0.2)}
+  \item \textbf{Feature encoding}: Categorical variables were processed using:
+  \begin{itemize}
+    \item \texttt{NumericExtractor} for parsing mixed-type numeric fields, followed by median imputing and standard scaling
+    \item \texttt{CyclicalDateEncoder} to transform temporal categorical features into sine/cosine pairs, preserving cyclical
+    relationships (e.g. month 12 is closer to 1 than to 6). Then I applied median imputation for missing values,
+    and standard scaling which is not needed for sine/cosine but for the year column.
+    \item \texttt{BinaryModeEncoder} for binary categorical features, with imputation with the most frequent class
+    after that.
+  \end{itemize}
+  \item \textbf{Redundant feature removal}: The \texttt{loan\_title} column was dropped due to redundancy with
+  \texttt{loan\_purpose\_category}. The \texttt{borrower\_address\_state} columns was dropped due to redundancy with
+  \texttt{borrower\_address\_zip}.
+  \item \textbf{Numerical imputation}: The remaining numerical columns were treated with median imputing and standard scaling,
+  since neural networks are sensitive to the scale of input features.
+\end{itemize}
+
+The columns that were embedded or one-hot encoded in the previous architecture are now passed to the TabNet configuration to
+be embedded by the network.
+
+\subsubsection{Modeling and hyperparameter tuning}
+
+To use TabTransformer I used the library \texttt{pytorch\_tabular}, which requires setting up a \texttt{TabTransformerConfig}.
+
+The fixed hyperparameters are:
+\begin{itemize}
+  \item \texttt{CrossEntropyLoss}, with class weights: to penalize misclassifications of the minority class more heavily
+  and handle the class imbalance.
+  \item \texttt{AdamW} optimizer with a learning rate of $\eta = 1*10^{-3}$: chosen for the adaptive learning rate and
+  weight decay, to provide more stable gradient estimates.
+  \item \texttt{ReduceLROnPlateau}: scheduler (with a minimum of $\eta = 1*10^{-6}$) to reduce the learning rate when the
+  validation loss plateaus, to make the optimizer converge more precisely on the minimum.
+  \item \textbf{Epochs and Batch size}: the model was trained for 200 epochs with a batch size of 512.
+\end{itemize}
+
+To balance predictive performance with computational efficiency, we evaluated three incrementally scaled configurations
+(Table \ref{tab:tabtransformer_configs}). This approach tests the impact of model capacity without the cost of an exhaustive grid search.
+
+\begin{table}[h]
+  \centering
+  \caption{TabTransformer Configurations}
+  \label{tab:tabtransformer_configs}
+  \begin{tabular}{lcccc}
+  \hline
+  \textbf{Scale} & \textbf{Embed Dim ($d_{embed}$)} & \textbf{Heads ($h$)} & \textbf{Attn. Blocks ($N$)} \\ \hline
+  Small  & 16 & 4 & 2 \\
+  Medium & 32 & 8 & 4 \\
+  Large  & 64 & 8 & 6 \\ \hline
+  \end{tabular}
+  \end{table}
+
+  \textbf{Parameter Reasoning:}
+  \begin{itemize}
+    \item \textbf{Embedding Dimension ($d_{embed}$):} To increase the model's ability to represent categorical features
+    in a continuous vector space. Each dimension is chosen to be divisible by the number of heads to facilitate
+    multi-head attention.
+    \item \textbf{Number of Heads ($h$):} Increasing the heads from 4 to 8 allows the model to attend to different feature
+    interactions simultaneously, capturing diverse relational patterns within the data.
+    \item \textbf{Attention Blocks ($N$):} This defines the depth of the Transformer. A depth of 2 is sufficient for simple
+    interactions, while 6 blocks allow the model to learn high-order dependencies between features.
+  \end{itemize}
+
+\subsubsection{Results}
+The performance of the three configurations was evaluated using Accuracy, Balanced Accuracy, and Weighted F1-Score. 
+The results are summarized in Table \ref{tab:tabtransformer_results}.
+
+\begin{table}[h]
+\centering
+\caption{Performance Comparison of TabTransformer Configurations}
+\label{tab:tabtransformer_results}
+\begin{tabular}{lcccccc}
+\hline
+\textbf{Scale} & $d_{embed}$ & $h$ & $N$ & \textbf{Accuracy} & \textbf{Balanced Accuracy} & \textbf{Weighted F1-Score} \\ \hline
+Small  & 16 & 4 & 2 & \textbf{0.8198} & \textbf{0.7612} & \textbf{0.8202} \\
+Medium & 32 & 8 & 4 & 0.7894          & 0.7259          & 0.7886          \\
+Large  & 64 & 8 & 6 & 0.7677          & 0.6967          & 0.7688          \\ \hline
+\end{tabular}
+\end{table}
+
+The results indicate that the \textbf{Small} configuration achieves the highest performance across all metrics. As model complexity
+increases in the \textbf{Medium} and \textbf{Large} configurations, there is a consistent degradation in performance, with the Large
+model dropping nearly 6.5\% in balanced accuracy compared to the baseline. This suggests that the increased number of attention blocks
+($N$) and embedding dimensions ($d_{embed}$) lead to rapid overfitting, as the model's capacity exceeds the complexity of the dataset.
+
+Given that the \textbf{Small} configuration yielded the highest absolute metrics while maintaining the lowest parameter count and
+computational overhead, it is selected as the optimal choice.
 
 \end{document}

@@ -5,6 +5,10 @@ dataset.csv
 saved_models
 .pt_tmp
 lightning_logs
+DataAnalytics
+saved_tabnet_model
+saved_tabtransformer_model
+__pycache__
 
 ## Core latex/pdflatex auxiliary files:
 *.aux

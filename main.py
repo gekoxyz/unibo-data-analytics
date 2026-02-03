@@ -40,6 +40,12 @@ print(f"Number of duplicates in the dataset: {duplicates.shape[0]}")
 
 name = getName()
 print(name)
-dataset_processed = preprocess(dataset, 'rf')
-clf = load('rf')
-perf = predict(dataset_processed, clf)
+
+classifiers = ["knn", "rf", "svm", "ff"]
+
+for clfName in classifiers:
+  print(f"--- {clfName} ---")
+  dataset_processed = preprocess(dataset, clfName)
+  clf = load(clfName)
+  perf = predict(dataset_processed, clf)
+  print(perf)
