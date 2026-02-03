@@ -55,7 +55,7 @@
 
 \graphicspath{ {./images/} }
 
-\title{Data Analytics}
+\title{Data Analytics exam's project}
 
 \author{
  Matteo Galiazzo \\
@@ -67,10 +67,6 @@
 \begin{document}
 
 \maketitle
-
-\begin{abstract}
-Your abstract text goes here.
-\end{abstract}
 
 \tableofcontents
 
@@ -116,8 +112,7 @@ expectation that higher interest rates are assigned to riskier borrower grades. 
 
 \subsection{Handling Missing Values}
 
-An analysis of missing data revealed significant sparsity in several columns (see Figure
-\ref{fig:missing_features_heatmap}).
+An analysis of missing data revealed significant sparsity in several columns (Figure \ref{fig:missing_features_heatmap}).
 
 \begin{figure}[htbp]
   \centering
@@ -126,8 +121,8 @@ An analysis of missing data revealed significant sparsity in several columns (se
   \label{fig:missing_features_heatmap}
 \end{figure}
 
-To preserve data quality and avoid noise from excessive imputation, features with more than \textbf{20\% missing values}
-were discarded (Figure \ref{fig:missing_more_than_20}). Following this reduction, the dataset dimensionality decreased
+To preserve avoid noise from excessive imputation, features with more than \textbf{20\% missing values} were discarded
+(Figure \ref{fig:missing_more_than_20}) for all the models. Following this reduction, the dataset dimensionality decreased
 from 145 to 88 columns.
 
 \begin{figure}[htbp]
@@ -139,12 +134,13 @@ from 145 to 88 columns.
 
 \subsection{Feature Engineering and Encoding}
 
-Categorical features were identified using the Pandas \verb|select_dtypes| method. The identified features include:
-
+Categorical features were identified using the Pandas \verb|select_dtypes| method.
 \begin{lstlisting}[language=python]
 categorical_cols = dataset.select_dtypes(include=['object', 'category']).columns
 print(f"Categorical columns:\n{categorical_cols.sort_values()}") 
 \end{lstlisting}
+
+The identified features include:
 \begin{lstlisting}
 Categorical columns:
 Index(['application_type_label', 'borrower_address_state',
@@ -158,6 +154,9 @@ Index(['application_type_label', 'borrower_address_state',
         'loan_status_current_code'],
       dtype='object')
 \end{lstlisting}
+
+Each column was manually analyzed by checking the feature's number of unique values and their content, to distinguish
+between columns which can be extracted to numbers, binary values, dates, ordinal features, or categorical features.
 
 \subsubsection{Custom Transformation Pipelines}
 
@@ -174,7 +173,9 @@ data types:
   the positive class (1) to the minority value to capture information density.
 \end{itemize}
 
-For categorical columns I used sklearn's \verb|OneHotEncoder|.
+For categorical columns I used sklearn's \texttt{OneHotEncoder}. 
+Also, I used \texttt{SimpleImputer} to substitute NaNs with the categorical variable "missing" for one hot encoding or
+embeddings.
 
 
 \section{Machine Learning models}
@@ -195,7 +196,7 @@ The Random Forest model was trained using the following preprocessing steps:
     \item \texttt{BinaryModeEncoder} for binary categorical features.
   \end{itemize}
   \item \textbf{Dimensionality reduction}: High-cardinality nominal categorical features (\texttt{borrower\_address\_zip} and
-  \texttt{borrower\_address\_state}) were excluded from One-Hot Encoding to prevent feature space explosion, as
+  \texttt{borrower\_address\_state}) were excluded from one hot Encoding to prevent feature space explosion, as
   Random Forest efficiency degrades with high-dimensional sparse inputs (882 unique values for zip code and 52 for state)
   despite its robustness to feature dimensionality in general.
   \item \textbf{Redundant feature removal}: The \texttt{loan\_title} column was dropped due to redundancy with
@@ -203,7 +204,7 @@ The Random Forest model was trained using the following preprocessing steps:
 \end{itemize}
 
 Missing values were not imputed, becuase Random Forests handle them natively during tree construction.
-Variables were not scaled since Random Forests are scale-invariant, and partition data based on relative thresholds
+Variables were not scaled since Random Forests are scale invariant, and partition data based on relative thresholds
 rather than absolute magnitudes.
 
 \subsubsection{Modeling and hyperparameter tuning}
@@ -216,7 +217,7 @@ A grid search was performed to optimize the following hyperparameters:
 \end{itemize}
 
 The model uses \texttt{class\_weight='balanced'} to account for class imbalance. Model selection was based on
-\textbf{maximizing balanced accuracy} via stratified $k$-fold cross-validation to ensure robustness across data splits.
+\textbf{maximizing balanced accuracy} via stratified $k$-fold cross validation to ensure robustness across data splits.
 
 \subsubsection{Results}
 
@@ -290,7 +291,7 @@ A grid search was performed to optimize the following hyperparameters:
 The model uses \texttt{weights='distance'} to weight points by the inverse of their distance, making closer points have
 a greater influence in the voting. This mitigates the presence of the outliers in the neighbor points.
 
-Model selection was based on \textbf{maximizing balanced accuracy} via stratified $k$-fold cross-validation to ensure
+Model selection was based on \textbf{maximizing balanced accuracy} via stratified $k$-fold cross validation to ensure
 robustness across data splits.
 
 \subsubsection{Results}
@@ -299,7 +300,7 @@ are summarized in Table \ref{tab:knn_results}
 
 \begin{table}[h]
   \centering
-  \caption{Impact of LDA and Neighbors on KNN Performance}
+  \caption{Performance Comparison of KNN Configurations}
   \label{tab:knn_results}
   \resizebox{\textwidth}{!}{
   \begin{tabular}{llccccccc}
@@ -354,7 +355,7 @@ The Support Vector Machine was trained using the following preprocessing steps:
   \texttt{loan\_purpose\_category}. The \texttt{borrower\_address\_state} columns was dropped
   due to redundancy with \texttt{borrower\_address\_zip}.  
   \item \textbf{Numerical imputation}: The remaining numerical columns were treated with median imputing and standard scaling,
-  as SVMs are sensitive to the scale of input features due to their reliance on distance-based calculations.
+  as SVMs are sensitive to the scale of input features due to their reliance on distance based calculations.
 \end{itemize}
 
 \subsubsection{Modeling and hyperparameter tuning}
@@ -369,7 +370,7 @@ A grid search was performed to optimize the following hyperparameters:
 \end{itemize}
 
 The model uses \texttt{class\_weights='balanced'} to to account for class imbalance.
-Model selection was based on \textbf{maximizing balanced accuracy} via stratified $k$-fold cross-validation to ensure
+Model selection was based on \textbf{maximizing balanced accuracy} via stratified $k$-fold cross validation to ensure
 robustness across data splits.
 
 \subsubsection{Results}
@@ -379,7 +380,7 @@ to highlight the differences in performance are summarized in Table \ref{tab:svm
 
 \begin{table}[h]
   \centering
-  \caption{Impact of LDA and Convergence on SVM Performance}
+  \caption{Performance Comparison of SVM Configurations}
   \label{tab:svm_results}
   \resizebox{\textwidth}{!}{%
   \begin{tabular}{llccccccc}
@@ -395,7 +396,7 @@ to highlight the differences in performance are summarized in Table \ref{tab:svm
 \end{table}
 
 Configuration 5 (No LDA) achieved a balanced accuracy of $77.8\%$, practically identical to the best model (ID 17). However,
-training the model on the full feature set took \textbf{801 seconds}, whereas the LDA-reduced feature set took only \textbf{28 seconds}.
+training the model on the full feature set took \textbf{801 seconds}, whereas the LDA reduced feature set took only \textbf{28 seconds}.
 
 The best configuration with 1000 iterations (ID 6) failed to converge properly, resulting in a performance drop of
 nearly $17\%$ compared to the 10000 iterations counterparts.
@@ -491,7 +492,7 @@ complexity of the larger network does not yield a meaningful performance benefit
 By keeping the first hidden layer at 128 units rather than 256, the Medium model reduces the parameter 
 count of the dense layers, leading to faster inference times without sacrificing predictive power.
 
-We select the \textbf{Medium configuration} (ID 0). It offers the highest overall Accuracy and F1-Score, while avoiding the
+We select the \textbf{Medium configuration} (ID 0). It offers the highest overall Accuracy and Weighted F1 Score, while avoiding the
 computational overhead of the deeper architecture.
 
 Figure \ref{fig:ff_training} illustrates the training dynamics for the selected Medium configuration over 200 epochs.
@@ -499,9 +500,10 @@ Figure \ref{fig:ff_training} illustrates the training dynamics for the selected 
 \begin{figure}[h]
   \centering
   \includegraphics[width=\textwidth]{ff_training_plots.png}
-  \caption{Left: Cross-Entropy Loss showing convergence around epoch 70. Right: Evolution of Balanced Accuracy and F1-Score.}
+  \caption{Left: Cross-Entropy Loss showing convergence around epoch 70. Right: Evolution of Balanced Accuracy and Weighted F1 Score.}
   \label{fig:ff_training}
 \end{figure}
+
 
 \section{Deep Tabular models}
 
@@ -528,7 +530,7 @@ The TabNet was trained using the following preprocessing steps:
   since neural networks are sensitive to the scale of input features.
 \end{itemize}
 
-The columns that were embedded or one-hot encoded in the previous architecture are now passed to the TabNet configuration to
+The columns that were embedded or one hot encoded in the previous architecture are now passed to the TabNet configuration to
 be embedded by the network.
 
 \subsubsection{Modeling and hyperparameter tuning}
@@ -551,7 +553,7 @@ To balance predictive performance with computational efficiency, we evaluated th
 
 \begin{table}[h]
 \centering
-\caption{TabNet Configurations}
+\caption{Performance Comparison of TabNet Configurations}
 \label{tab:tabnet_configs}
 \begin{tabular}{lcccc}
 \hline
@@ -572,7 +574,7 @@ Large & 32 & 7 & 1.5 \\ \hline
 \end{itemize}
 
 \subsubsection{Results}
-The performance of the three configurations was evaluated using Accuracy, Balanced Accuracy, and weighted F1-Score.
+The performance of the three configurations was evaluated using Accuracy, Balanced Accuracy, and weighted Weighted F1 Score.
 The results are summarized in Table \ref{tab:tabnet_results}.
 
 \begin{table}[h]
@@ -581,7 +583,7 @@ The results are summarized in Table \ref{tab:tabnet_results}.
 \label{tab:tabnet_results}
 \begin{tabular}{lcccccc}
 \hline
-\textbf{Scale} & $n_d, n_a$ & $n_{steps}$ & $\gamma$ & \textbf{Accuracy} & \textbf{Balanced Accuracy} & \textbf{Weighted F1-Score} \\ \hline
+\textbf{Scale} & $n_d, n_a$ & $n_{steps}$ & $\gamma$ & \textbf{Accuracy} & \textbf{Balanced Accuracy} & \textbf{Weighted F1 Score} \\ \hline
 Small  & 8  & 3 & 1.2 & 0.8993 & 0.8678 & 0.8993 \\
 Medium & 16 & 5 & 1.3 & \textbf{0.9000} & \textbf{0.8698} & \textbf{0.8999} \\
 Large  & 32 & 7 & 1.5 & 0.7951 & 0.7247 & 0.7939 \\ \hline
@@ -593,11 +595,24 @@ though the margin of improvement over the \textbf{Small} configuration is minima
 a significant drop in performance (approximately 10\% in accuracy). This suggests that increasing the model depth ($n_{steps}=7$)
 and width ($n_d, n_a=32$) beyond a certain point leads to overfitting or numerical instability on this specific dataset.
 
-While the \textbf{Medium} configuration (ID 1) yielded the highest absolute metrics, the marginal improvement over the
+While the \textbf{Medium} configuration (ID 1) had the highest absolute metrics, the marginal improvement over the
 \textbf{Small} configuration (ID 0) is only $0.2\%$ in balanced accuracy. To keep the parameter count and comoputational overhead
-low , we select the \textbf{Small model} as the optimal choice. This decision prioritizes \textbf{inference efficiency and model
-parsimony} without sacrificing meaningful predictive performance.
+low, we select the \textbf{Small model} as the optimal choice. 
 
+We can see the training and validation loss for the model in Figure \ref{fig:tb_loss}
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.8\textwidth]{tabnet_loss_smooth.png}
+  \caption{Training and validation loss for the TabNet model}
+  \label{fig:tb_loss}
+\end{figure}
+
+The two curves are overlapping for the majority of the training steps. This indicates that the model is generalizing
+extremely well to unseen data.
+
+The loss drops sharply in the first 2500 steps and then continues a slow, steady decline, up to 25000 steps, where it's
+slightly improving.
 
 \subsection{TabTransformer}
 
@@ -622,7 +637,7 @@ The TabTransformer was trained using the following preprocessing steps:
   since neural networks are sensitive to the scale of input features.
 \end{itemize}
 
-The columns that were embedded or one-hot encoded in the previous architecture are now passed to the TabNet configuration to
+The columns that were embedded or one hot encoded in the previous architecture are now passed to the TabNet configuration to
 be embedded by the network.
 
 \subsubsection{Modeling and hyperparameter tuning}
@@ -645,7 +660,7 @@ To balance predictive performance with computational efficiency, we evaluated th
 
 \begin{table}[h]
   \centering
-  \caption{TabTransformer Configurations}
+  \caption{Performance Comparison of TabTransformer Configurations}
   \label{tab:tabtransformer_configs}
   \begin{tabular}{lcccc}
   \hline
@@ -664,11 +679,11 @@ To balance predictive performance with computational efficiency, we evaluated th
     \item \textbf{Number of Heads ($h$):} Increasing the heads from 4 to 8 allows the model to attend to different feature
     interactions simultaneously, capturing diverse relational patterns within the data.
     \item \textbf{Attention Blocks ($N$):} This defines the depth of the Transformer. A depth of 2 is sufficient for simple
-    interactions, while 6 blocks allow the model to learn high-order dependencies between features.
+    interactions, while 6 blocks allow the model to learn high order dependencies between features.
   \end{itemize}
 
 \subsubsection{Results}
-The performance of the three configurations was evaluated using Accuracy, Balanced Accuracy, and Weighted F1-Score. 
+The performance of the three configurations was evaluated using Accuracy, Balanced Accuracy, and Weighted F1 Score. 
 The results are summarized in Table \ref{tab:tabtransformer_results}.
 
 \begin{table}[h]
@@ -677,7 +692,7 @@ The results are summarized in Table \ref{tab:tabtransformer_results}.
 \label{tab:tabtransformer_results}
 \begin{tabular}{lcccccc}
 \hline
-\textbf{Scale} & $d_{embed}$ & $h$ & $N$ & \textbf{Accuracy} & \textbf{Balanced Accuracy} & \textbf{Weighted F1-Score} \\ \hline
+\textbf{Scale} & $d_{embed}$ & $h$ & $N$ & \textbf{Accuracy} & \textbf{Balanced Accuracy} & \textbf{Weighted F1 Score} \\ \hline
 Small  & 16 & 4 & 2 & \textbf{0.8198} & \textbf{0.7612} & \textbf{0.8202} \\
 Medium & 32 & 8 & 4 & 0.7894          & 0.7259          & 0.7886          \\
 Large  & 64 & 8 & 6 & 0.7677          & 0.6967          & 0.7688          \\ \hline
@@ -691,5 +706,51 @@ model dropping nearly 6.5\% in balanced accuracy compared to the baseline. This 
 
 Given that the \textbf{Small} configuration yielded the highest absolute metrics while maintaining the lowest parameter count and
 computational overhead, it is selected as the optimal choice.
+
+We can see the training and validation loss for the model in Figure \ref{fig:tt_loss}
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.8\textwidth]{tabtransformer_loss_smooth.png}
+  \caption{Training and validation loss for the TabTransformer model}
+  \label{fig:tt_loss}
+\end{figure}
+
+The TabTransformer shows a divergence between training and validation performance. Around step 4000, the training loss
+continues to drop, but the validation loss flattens out. At around step 8000 the validation loss starts to rise, clearly
+signaling overfitting.
+
+\section{Conclusions}
+
+The Table \ref{tab:final_comparison} summarizes the performance of the selected best models.
+
+\begin{table}[h]
+\centering
+\caption{Final Comparison of Best Configurations Across All Architectures}
+\label{tab:final_comparison}
+\resizebox{\textwidth}{!}{
+\begin{tabular}{llccc}
+\hline
+\textbf{Model Family} & \textbf{Selected Configuration} & \textbf{Accuracy} & \textbf{Bal. Accuracy} & \textbf{Weighted F1 Score} \\ \hline
+\textbf{TabNet} & $n_d,n_a=8, \, n_{steps}=3, \, \gamma$ & \textbf{0.8993} & \textbf{0.8678} & \textbf{0.8993} \\
+FeedForward NN & [128, 64, 32] & 0.8959 & 0.8579 & 0.8959 \\
+Random Forest & Depth=None, Min. Leaf=5, Estimators=200 & 0.8739 & 0.8281 & 0.8728 \\
+SVM & C=10, LDA Enabled, Iter=10000 & 0.8313 & 0.7780 & 0.8307 \\
+TabTransformer & $d_{embed}=16$ $h=4$ $N=2$ & 0.8198 & 0.7612 & 0.8202 \\ 
+KNN & $k=7$, LDA Enabled, No Sampler & 0.8209 & 0.7531 & 0.8198 \\ \hline
+\end{tabular}
+}
+\end{table}
+
+The \textbf{TabNet} architecture achieved the highest performance ($\approx 86.8\%$ Balanced Accuracy), closely followed by the
+\textbf{FeedForward Network} ($\approx 85.8\%$ Balanced Accuracy). This suggests that the dataset contains complex, non-linear feature
+interactions that are best captured by deep representations.
+
+Among the non-deep learning models, \textbf{Random Forest} proved to be the best one ($82.8\%$ Balanced Accuracy). It significantly
+outperformed distance based methods (SVM and KNN), even when those methods were helped by LDA dimensionality reduction.
+
+The \textbf{TabTransformer} underperformed compared to TabNet and even the Random Forest. The overfitting observed in the training curves
+suggests that the attention mechanism in TabTransformer may require significantly more data or stronger regularization to be effective on
+this specific dataset.
 
 \end{document}

@@ -3,7 +3,9 @@ import numpy as np
 import random
 import torch
 
-from test import getName, preprocess, load, predict
+device = torch.device("mps")
+
+from test import *
 
 # Use the GPU
 if torch.backends.mps.is_available():

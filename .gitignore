@@ -9,6 +9,8 @@ DataAnalytics
 saved_tabnet_model
 saved_tabtransformer_model
 __pycache__
+*.zip
+consegna
 
 ## Core latex/pdflatex auxiliary files:
 *.aux
